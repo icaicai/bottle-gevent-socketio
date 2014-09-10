@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link href="static/css/style.css" rel="stylesheet">
+    <script type="text/javascript" src="static/jquery.min.js"></script>
+    <script type="text/javascript" src="static/jquery.flot.min.js"></script>
+    <script type="text/javascript" src="static/socket.io.js"></script>
+    <!--[if lte IE 8]><script language="javascript" type="text/javascript" src="static/excanvas.js"></script><![endif]-->
+    <script>
+$(function() {
+
+    var CPU_COUNT = {{cpu_count}};
+    var $graph = $('#graph');
+
+
+
+    // WEB_SOCKET_SWF_LOCATION = "/static/WebSocketMain.swf";
+    WEB_SOCKET_DEBUG = true;
+
+    // Socket.io specific code
+    // var socket = io.connect('/cpu');
+    // var socket = io()
+    // socket.connect('/cpu', {reconnection: false});
+    var socket = io.connect('/cpu', {reconnection: false})
+    socket.on('connect', function (data) {
+        console.log('===============')
+    });
+    // Setup plot
+    var options = {
+        series: { shadowSize: 0 }, // drawing is faster without shadows
+        yaxis: { min: 0, max: 100 },
+        xaxis: { show: false }
+    };
+
+    // For formatting the plot data
+    var enumerate = function(l) {
+        var res = [];
+        for (var i=0; i<l.length; ++i)
+            res.push([i, l[i]])
+        return res;
+    };
+
+
+    var cpu_plot = [],
+        cpu_data = [];
+    
+    for (var i=0; i<CPU_COUNT; i++) {
+        var d1 = [],
+            h;
+
+        h = '<div style="float:left;margin:15px;">CPU '+i+'<br /><div id="cpu_'+i+'" style="width:400px;height:200px;"></div></div>';
+        $graph.append(h);
+        
+        for (var j=0; j<300; j++) {
+            d1.push(0);
+        }
+        cpu_data.push(d1);
+
+    }
+
+    setTimeout(function () {
+        for (var i=0; i<CPU_COUNT; i++) {
+            var plot = $.plot($('#cpu_'+i), [{data: enumerate(cpu_data[i])}], options);
+            cpu_plot.push(plot)
+        }
+    }, 0)
+    
+
+    // Update the graph when we get new data from the server
+    socket.on('cpu_data', function(data) {
+        // console.log(data);
+        for (var i=0; i<CPU_COUNT; i++) {
+            var d1 = cpu_data[i],
+                plot = cpu_plot[i];
+
+            cpu_data[i] = d1 = d1.slice(1);
+            d1.push(data.point[i]);
+            plot.setData([{data: enumerate(d1)}]);
+            plot.draw();
+        }
+    });
+
+});
+  </script>
+  </head>
+<body>
+  <h1>Live CPU graph</h1>
+  <div id="graph" style="width:880px;"></div>
+</body>
+</html>
